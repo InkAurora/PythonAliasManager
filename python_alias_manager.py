@@ -9,8 +9,9 @@ import sys
 import json
 import argparse
 import subprocess
+import re
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List, Set
 
 class PythonAliasManager:
     def __init__(self):
@@ -66,7 +67,8 @@ class PythonAliasManager:
                         venv_info['path'] = str(venv_path)
                         venv_info['type'] = 'venv'
                         venv_info['activate_script'] = str(activate_script)
-                        return venv_info
+                        # Don't return yet, continue to check for requirements files
+                        break
         
         # 2. Check for requirements.txt or pyproject.toml (suggests project with dependencies)
         requirements_files = [
@@ -79,39 +81,47 @@ class PythonAliasManager:
         for req_file in requirements_files:
             if req_file.exists():
                 venv_info['requirements_file'] = str(req_file)
-                venv_info['type'] = 'project'
+                if not venv_info.get('type'):  # Only set type if not already set
+                    venv_info['type'] = 'project'
                 break
         
         # 3. Check for conda environment (look for environment.yml)
         conda_env_file = script_dir / 'environment.yml'
         if conda_env_file.exists():
             venv_info['conda_env_file'] = str(conda_env_file)
-            venv_info['type'] = 'conda'
+            if not venv_info.get('type'):
+                venv_info['type'] = 'conda'
         
-        # 4. Check parent directories for venv (up to 3 levels)
-        parent_dir = script_dir.parent
-        for level in range(3):
-            if parent_dir == parent_dir.parent:  # Reached root
-                break
-            
-            for venv_name in ['venv', 'env', '.venv', '.env']:
-                venv_path = parent_dir / venv_name
-                if venv_path.exists() and venv_path.is_dir():
-                    activate_scripts = [
-                        venv_path / 'Scripts' / 'activate',      # Windows
-                        venv_path / 'Scripts' / 'activate.bat',  # Windows
-                        venv_path / 'bin' / 'activate',          # Linux/macOS
-                    ]
-                    
-                    for activate_script in activate_scripts:
-                        if activate_script.exists():
-                            venv_info['path'] = str(venv_path)
-                            venv_info['type'] = 'venv'
-                            venv_info['activate_script'] = str(activate_script)
-                            venv_info['parent_level'] = level + 1
-                            return venv_info
-            
-            parent_dir = parent_dir.parent
+        # 4. Check parent directories for venv (up to 3 levels) - only if no venv found yet
+        if venv_info.get('type') != 'venv':
+            parent_dir = script_dir.parent
+            for level in range(3):
+                if parent_dir == parent_dir.parent:  # Reached root
+                    break
+                
+                for venv_name in ['venv', 'env', '.venv', '.env']:
+                    venv_path = parent_dir / venv_name
+                    if venv_path.exists() and venv_path.is_dir():
+                        activate_scripts = [
+                            venv_path / 'Scripts' / 'activate',      # Windows
+                            venv_path / 'Scripts' / 'activate.bat',  # Windows
+                            venv_path / 'bin' / 'activate',          # Linux/macOS
+                        ]
+                        
+                        for activate_script in activate_scripts:
+                            if activate_script.exists():
+                                venv_info['path'] = str(venv_path)
+                                venv_info['type'] = 'venv'
+                                venv_info['activate_script'] = str(activate_script)
+                                venv_info['parent_level'] = level + 1
+                                # Also check for requirements in parent dir
+                                for req_file in requirements_files:
+                                    if req_file.exists():
+                                        venv_info['requirements_file'] = str(req_file)
+                                        break
+                                return venv_info
+                
+                parent_dir = parent_dir.parent
         
         return venv_info if venv_info else None
     
@@ -587,6 +597,238 @@ fi
             print(f"Error running script: {e}")
             return False
 
+    def parse_requirements_txt(self, requirements_file: str) -> List[str]:
+        """Parse requirements.txt file and return list of package names."""
+        packages = []
+        try:
+            with open(requirements_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    # Skip empty lines and comments
+                    if not line or line.startswith('#'):
+                        continue
+                    
+                    # Handle different requirement formats
+                    # package==1.2.3, package>=1.0, package~=1.0, etc.
+                    # Extract just the package name
+                    match = re.match(r'^([a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]|[a-zA-Z0-9])', line)
+                    if match:
+                        package_name = match.group(1)
+                        packages.append(package_name)
+        except Exception as e:
+            print(f"Error reading requirements file: {e}")
+        
+        return packages
+
+    def parse_pyproject_toml(self, pyproject_file: str) -> List[str]:
+        """Parse pyproject.toml file and return list of package names."""
+        packages = []
+        try:
+            # Basic TOML parsing for dependencies section
+            with open(pyproject_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+                
+            # Look for [tool.poetry.dependencies] or [project] dependencies
+            in_dependencies = False
+            in_project_dependencies = False
+            
+            for line in content.split('\n'):
+                line = line.strip()
+                
+                # Check for poetry dependencies section
+                if line == '[tool.poetry.dependencies]':
+                    in_dependencies = True
+                    continue
+                elif line.startswith('[') and in_dependencies:
+                    in_dependencies = False
+                    continue
+                
+                # Check for PEP 621 project dependencies
+                if 'dependencies = [' in line:
+                    in_project_dependencies = True
+                    # Handle single-line dependencies
+                    deps_match = re.search(r'dependencies\s*=\s*\[(.*?)\]', line)
+                    if deps_match:
+                        deps_str = deps_match.group(1)
+                        for dep in re.findall(r'"([^"]+)"', deps_str):
+                            match = re.match(r'^([a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]|[a-zA-Z0-9])', dep)
+                            if match:
+                                packages.append(match.group(1))
+                        in_project_dependencies = False
+                    continue
+                elif line == ']' and in_project_dependencies:
+                    in_project_dependencies = False
+                    continue
+                
+                # Parse individual dependency lines
+                if in_dependencies and '=' in line and not line.startswith('#'):
+                    # Poetry format: package = "^1.0.0" or package = {version = "^1.0.0"}
+                    match = re.match(r'^([a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]|[a-zA-Z0-9])\s*=', line)
+                    if match and match.group(1) != 'python':  # Skip python version requirement
+                        packages.append(match.group(1))
+                elif in_project_dependencies and '"' in line:
+                    # PEP 621 format: "package>=1.0.0",
+                    dep_match = re.search(r'"([^"]+)"', line)
+                    if dep_match:
+                        dep = dep_match.group(1)
+                        match = re.match(r'^([a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]|[a-zA-Z0-9])', dep)
+                        if match:
+                            packages.append(match.group(1))
+                            
+        except Exception as e:
+            print(f"Error reading pyproject.toml file: {e}")
+        
+        return packages
+
+    def get_installed_packages(self, python_executable: str) -> Set[str]:
+        """Get list of installed packages in the given Python environment."""
+        packages = set()
+        try:
+            result = subprocess.run([python_executable, "-m", "pip", "list", "--format=freeze"], 
+                                 capture_output=True, text=True, timeout=30)
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if '==' in line:
+                        package_name = line.split('==')[0].lower()
+                        packages.add(package_name)
+        except Exception as e:
+            print(f"Error getting installed packages: {e}")
+        
+        return packages
+
+    def check_dependencies(self, alias_name: str, install_missing: bool = False) -> bool:
+        """Check if dependencies for an alias are installed, optionally install missing ones."""
+        if alias_name not in self.aliases:
+            print(f"Alias '{alias_name}' not found.")
+            return False
+        
+        script_path = self.aliases[alias_name]
+        if not os.path.exists(script_path):
+            print(f"Script '{script_path}' no longer exists.")
+            return False
+        
+        print(f"Dependency Check for '{alias_name}':")
+        print(f"Script: {script_path}")
+        print("-" * 60)
+        
+        # Detect virtual environment and requirements
+        venv_info = self.detect_venv(script_path)
+        
+        if not venv_info:
+            print("❌ No virtual environment or requirements file detected")
+            print("\nRecommendations:")
+            print("• Create a requirements.txt file listing dependencies")
+            print("• Or create a virtual environment with dependencies installed")
+            return False
+        
+        # Find requirements file
+        requirements_file = venv_info.get('requirements_file')
+        if not requirements_file:
+            print("❌ No requirements file found")
+            print("   Checked for: requirements.txt, pyproject.toml, setup.py, poetry.lock")
+            return False
+        
+        print(f"📋 Requirements file: {requirements_file}")
+        
+        # Parse requirements
+        required_packages = []
+        req_path = Path(requirements_file)
+        
+        if req_path.name == 'requirements.txt':
+            required_packages = self.parse_requirements_txt(requirements_file)
+        elif req_path.name == 'pyproject.toml':
+            required_packages = self.parse_pyproject_toml(requirements_file)
+        else:
+            print(f"⚠️  Requirements file format not supported for dependency checking: {req_path.name}")
+            print("   Supported formats: requirements.txt, pyproject.toml")
+            return False
+        
+        if not required_packages:
+            print("📦 No dependencies found in requirements file")
+            return True
+        
+        print(f"📦 Found {len(required_packages)} required packages")
+        
+        # Determine Python executable to use
+        python_exe = sys.executable  # Default fallback
+        
+        if venv_info.get('type') == 'venv':
+            venv_python = self.get_venv_python_executable(venv_info)
+            if venv_python:
+                python_exe = venv_python
+                print(f"🐍 Using virtual environment Python: {venv_python}")
+            else:
+                print(f"⚠️  Virtual environment detected but Python executable not found, using: {python_exe}")
+        else:
+            print(f"🐍 Using system Python: {python_exe}")
+        
+        # Get installed packages
+        print("\n🔍 Checking installed packages...")
+        installed_packages = self.get_installed_packages(python_exe)
+        
+        if not installed_packages:
+            print("❌ Could not retrieve installed packages list")
+            return False
+        
+        # Check each required package
+        missing_packages = []
+        installed_required = []
+        
+        for package in required_packages:
+            package_lower = package.lower()
+            if package_lower in installed_packages:
+                installed_required.append(package)
+            else:
+                missing_packages.append(package)
+        
+        # Report results
+        print(f"\n📊 Dependency Status:")
+        print(f"   ✅ Installed: {len(installed_required)}")
+        print(f"   ❌ Missing:   {len(missing_packages)}")
+        
+        if installed_required:
+            print(f"\n✅ Installed packages:")
+            for package in sorted(installed_required):
+                print(f"   • {package}")
+        
+        if missing_packages:
+            print(f"\n❌ Missing packages:")
+            for package in sorted(missing_packages):
+                print(f"   • {package}")
+            
+            if install_missing:
+                print(f"\n🔧 Installing missing packages...")
+                return self.install_missing_dependencies(python_exe, missing_packages)
+            else:
+                print(f"\n💡 To install missing packages:")
+                print(f"   {os.path.basename(__file__)} deps {alias_name} --install")
+                print(f"   Or manually: {python_exe} -m pip install {' '.join(missing_packages)}")
+                return False
+        else:
+            print(f"\n🎉 All dependencies are installed!")
+            return True
+    
+    def install_missing_dependencies(self, python_exe: str, missing_packages: List[str]) -> bool:
+        """Install missing dependencies using pip."""
+        if not missing_packages:
+            return True
+        
+        try:
+            cmd = [python_exe, "-m", "pip", "install"] + missing_packages
+            print(f"Running: {' '.join(cmd)}")
+            
+            result = subprocess.run(cmd, capture_output=False, text=True)
+            
+            if result.returncode == 0:
+                print(f"✅ Successfully installed {len(missing_packages)} packages!")
+                return True
+            else:
+                print(f"❌ Installation failed with return code {result.returncode}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Error during installation: {e}")
+            return False
 def main():
     parser = argparse.ArgumentParser(
         description="Python Script Alias Manager",
@@ -598,6 +840,8 @@ Examples:
   python_alias_manager.py remove myapp
   python_alias_manager.py run myapp --help
   python_alias_manager.py venv myapp
+  python_alias_manager.py deps myapp
+  python_alias_manager.py deps myapp --install
   python_alias_manager.py setup
         """
     )
@@ -633,6 +877,11 @@ Examples:
     venv_parser = subparsers.add_parser('venv', help='Check virtual environment info for an alias')
     venv_parser.add_argument('alias_name', help='Name of the alias to check')
     
+    # Dependencies command
+    deps_parser = subparsers.add_parser('deps', help='Check and manage dependencies for an alias')
+    deps_parser.add_argument('alias_name', help='Name of the alias to check dependencies for')
+    deps_parser.add_argument('--install', action='store_true', help='Install missing dependencies automatically')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -656,6 +905,8 @@ Examples:
         manager.check_path_setup()
     elif args.command == 'venv':
         manager.check_venv_info(args.alias_name)
+    elif args.command == 'deps':
+        manager.check_dependencies(args.alias_name, args.install)
 
 if __name__ == "__main__":
     main()
