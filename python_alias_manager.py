@@ -877,7 +877,7 @@ fi
     def create_virtual_environment(self, script_path: str) -> Optional[str]:
         """Create a virtual environment for a script if it doesn't exist."""
         script_dir = Path(script_path).parent
-        venv_path = script_dir / "venv"
+        venv_path = script_dir / ".venv"
         
         if venv_path.exists():
             print(f"✅ Virtual environment already exists at: {venv_path}")
