@@ -713,20 +713,64 @@ fi
         
         # Detect virtual environment and requirements
         venv_info = self.detect_venv(script_path)
+        script_dir = Path(script_path).parent
         
-        if not venv_info:
-            print("❌ No virtual environment or requirements file detected")
-            print("\nRecommendations:")
-            print("• Create a requirements.txt file listing dependencies")
-            print("• Or create a virtual environment with dependencies installed")
-            return False
+        # Check for requirements files first
+        requirements_files = [
+            script_dir / 'requirements.txt',
+            script_dir / 'pyproject.toml',
+            script_dir / 'setup.py',
+            script_dir / 'poetry.lock'
+        ]
         
-        # Find requirements file
-        requirements_file = venv_info.get('requirements_file')
+        requirements_file = None
+        for req_file in requirements_files:
+            if req_file.exists():
+                requirements_file = str(req_file)
+                break
+        
         if not requirements_file:
             print("❌ No requirements file found")
             print("   Checked for: requirements.txt, pyproject.toml, setup.py, poetry.lock")
+            if not venv_info:
+                print("\nRecommendations:")
+                print("• Create a requirements.txt file listing dependencies")
+                print("• Or create a virtual environment with dependencies installed")
             return False
+        
+        # Check if we have dependencies but no virtual environment
+        if not venv_info or venv_info.get('type') != 'venv':
+            # Parse requirements to see if there are any dependencies
+            required_packages = []
+            req_path = Path(requirements_file)
+            
+            if req_path.name == 'requirements.txt':
+                required_packages = self.parse_requirements_txt(requirements_file)
+            elif req_path.name == 'pyproject.toml':
+                required_packages = self.parse_pyproject_toml(requirements_file)
+            
+            if required_packages and install_missing:
+                print("📦 Dependencies found but no virtual environment detected")
+                print("🔧 Creating virtual environment automatically...")
+                
+                venv_path_str = self.create_virtual_environment(script_path)
+                if not venv_path_str:
+                    return False
+                
+                # Re-detect environment after creation
+                venv_info = self.detect_venv(script_path)
+                print("✅ Virtual environment created and ready!")
+            elif required_packages:
+                print("📦 Dependencies found but no virtual environment detected")
+                print("💡 To auto-create virtual environment and install dependencies:")
+                print(f"   {os.path.basename(__file__)} deps {alias_name} --install")
+                return False
+            elif not venv_info:
+                print("❌ No virtual environment or dependencies detected")
+                print("\nRecommendations:")
+                print("• Create a requirements.txt file listing dependencies")
+                print("• Or create a virtual environment with dependencies installed")
+                return False
         
         print(f"📋 Requirements file: {requirements_file}")
         
@@ -829,6 +873,144 @@ fi
         except Exception as e:
             print(f"❌ Error during installation: {e}")
             return False
+
+    def create_virtual_environment(self, script_path: str) -> Optional[str]:
+        """Create a virtual environment for a script if it doesn't exist."""
+        script_dir = Path(script_path).parent
+        venv_path = script_dir / "venv"
+        
+        if venv_path.exists():
+            print(f"✅ Virtual environment already exists at: {venv_path}")
+            return str(venv_path)
+        
+        print(f"🔧 Creating virtual environment at: {venv_path}")
+        
+        try:
+            # Create virtual environment
+            result = subprocess.run([sys.executable, "-m", "venv", str(venv_path)], 
+                                  capture_output=True, text=True, timeout=60)
+            
+            if result.returncode != 0:
+                print(f"❌ Failed to create virtual environment:")
+                print(f"   {result.stderr}")
+                return None
+            
+            print(f"✅ Virtual environment created successfully!")
+            
+            # Upgrade pip in the new environment
+            venv_python = self.get_venv_python_from_path(venv_path)
+            if venv_python:
+                print("🔧 Upgrading pip in virtual environment...")
+                pip_result = subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"], 
+                                          capture_output=True, text=True, timeout=60)
+                if pip_result.returncode == 0:
+                    print("✅ Pip upgraded successfully!")
+                else:
+                    print("⚠️  Pip upgrade failed, but virtual environment is ready")
+            
+            return str(venv_path)
+            
+        except subprocess.TimeoutExpired:
+            print("❌ Virtual environment creation timed out")
+            return None
+        except Exception as e:
+            print(f"❌ Error creating virtual environment: {e}")
+            return None
+
+    def get_venv_python_from_path(self, venv_path: Path) -> Optional[str]:
+        """Get Python executable from a virtual environment path."""
+        python_executables = [
+            venv_path / 'Scripts' / 'python.exe',    # Windows
+            venv_path / 'Scripts' / 'python',        # Windows
+            venv_path / 'bin' / 'python',            # Linux/macOS
+            venv_path / 'bin' / 'python3',           # Linux/macOS
+        ]
+        
+        for python_exe in python_executables:
+            if python_exe.exists():
+                return str(python_exe)
+        
+        return None
+
+    def auto_setup_dependencies(self, alias_name: str, install_missing: bool = True) -> bool:
+        """Automatically set up virtual environment and install dependencies for an alias."""
+        if alias_name not in self.aliases:
+            print(f"Alias '{alias_name}' not found.")
+            return False
+        
+        script_path = self.aliases[alias_name]
+        if not os.path.exists(script_path):
+            print(f"Script '{script_path}' no longer exists.")
+            return False
+        
+        print(f"🚀 Auto-setup for '{alias_name}':")
+        print(f"Script: {script_path}")
+        print("-" * 60)
+        
+        # Detect current environment and requirements
+        venv_info = self.detect_venv(script_path)
+        script_dir = Path(script_path).parent
+        
+        # Check for requirements files first
+        requirements_files = [
+            script_dir / 'requirements.txt',
+            script_dir / 'pyproject.toml',
+            script_dir / 'setup.py',
+            script_dir / 'poetry.lock'
+        ]
+        
+        requirements_file = None
+        for req_file in requirements_files:
+            if req_file.exists():
+                requirements_file = str(req_file)
+                break
+        
+        if not requirements_file:
+            print("❌ No requirements file found")
+            print("   Checked for: requirements.txt, pyproject.toml, setup.py, poetry.lock")
+            print("   Create a requirements.txt file with your dependencies first")
+            return False
+        
+        print(f"📋 Found requirements file: {requirements_file}")
+        
+        # Parse requirements to see if there are any dependencies
+        required_packages = []
+        req_path = Path(requirements_file)
+        
+        if req_path.name == 'requirements.txt':
+            required_packages = self.parse_requirements_txt(requirements_file)
+        elif req_path.name == 'pyproject.toml':
+            required_packages = self.parse_pyproject_toml(requirements_file)
+        
+        if not required_packages:
+            print("📦 No dependencies found in requirements file")
+            print("✅ No setup needed!")
+            return True
+        
+        print(f"📦 Found {len(required_packages)} required packages: {', '.join(required_packages)}")
+        
+        # Check if virtual environment exists
+        has_venv = venv_info and venv_info.get('type') == 'venv'
+        
+        if not has_venv:
+            print("❌ No virtual environment found")
+            
+            if not install_missing:
+                print("💡 To create virtual environment and install dependencies:")
+                print(f"   {os.path.basename(__file__)} deps {alias_name} --setup")
+                return False
+            
+            # Create virtual environment
+            venv_path_str = self.create_virtual_environment(script_path)
+            if not venv_path_str:
+                return False
+            
+            # Re-detect environment after creation
+            venv_info = self.detect_venv(script_path)
+        
+        # Now proceed with dependency checking and installation
+        return self.check_dependencies(alias_name, install_missing)
+    
 def main():
     parser = argparse.ArgumentParser(
         description="Python Script Alias Manager",
@@ -842,6 +1024,8 @@ Examples:
   python_alias_manager.py venv myapp
   python_alias_manager.py deps myapp
   python_alias_manager.py deps myapp --install
+  python_alias_manager.py deps myapp --setup
+  python_alias_manager.py setup-deps myapp
   python_alias_manager.py setup
         """
     )
@@ -881,6 +1065,11 @@ Examples:
     deps_parser = subparsers.add_parser('deps', help='Check and manage dependencies for an alias')
     deps_parser.add_argument('alias_name', help='Name of the alias to check dependencies for')
     deps_parser.add_argument('--install', action='store_true', help='Install missing dependencies automatically')
+    deps_parser.add_argument('--setup', action='store_true', help='Create virtual environment and install dependencies if needed')
+    
+    # Auto-setup command
+    setup_deps_parser = subparsers.add_parser('setup-deps', help='Auto-create virtual environment and install dependencies for an alias')
+    setup_deps_parser.add_argument('alias_name', help='Name of the alias to setup dependencies for')
     
     args = parser.parse_args()
     
@@ -906,7 +1095,10 @@ Examples:
     elif args.command == 'venv':
         manager.check_venv_info(args.alias_name)
     elif args.command == 'deps':
-        manager.check_dependencies(args.alias_name, args.install)
+        install_flag = args.install or args.setup
+        manager.check_dependencies(args.alias_name, install_flag)
+    elif args.command == 'setup-deps':
+        manager.auto_setup_dependencies(args.alias_name, True)
 
 if __name__ == "__main__":
     main()
