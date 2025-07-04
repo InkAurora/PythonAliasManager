@@ -199,10 +199,25 @@ if [[ "${{PWD}}" == /mnt/* ]] || command -v wslpath &> /dev/null; then
     # Source the activation script and run Python
     if [[ -f "$ACTIVATE_SCRIPT" ]]; then
         source "$ACTIVATE_SCRIPT"
-        python "$SCRIPT_PATH" "$@"
+        # Try python3 first, then python after activation
+        if command -v python3 &> /dev/null; then
+            python3 "$SCRIPT_PATH" "$@"
+        elif command -v python &> /dev/null; then
+            python "$SCRIPT_PATH" "$@"
+        else
+            echo "Error: No Python interpreter found after activating virtual environment"
+            exit 1
+        fi
     else
         # Fallback to system Python
-        python3 "$SCRIPT_PATH" "$@"
+        if command -v python3 &> /dev/null; then
+            python3 "$SCRIPT_PATH" "$@"
+        elif command -v python &> /dev/null; then
+            python "$SCRIPT_PATH" "$@"
+        else
+            echo "Error: No Python interpreter found"
+            exit 1
+        fi
     fi
 else
     # We're in regular Linux/macOS or Git Bash
@@ -211,10 +226,25 @@ else
     # Activate virtual environment if available
     if [[ -f "{activate_script}" ]]; then
         source "{activate_script}"
-        python "$SCRIPT_PATH" "$@"
+        # Try python3 first, then python after activation
+        if command -v python3 &> /dev/null; then
+            python3 "$SCRIPT_PATH" "$@"
+        elif command -v python &> /dev/null; then
+            python "$SCRIPT_PATH" "$@"
+        else
+            echo "Error: No Python interpreter found after activating virtual environment"
+            exit 1
+        fi
     else
         # Fallback to system Python
-        python3 "$SCRIPT_PATH" "$@"
+        if command -v python3 &> /dev/null; then
+            python3 "$SCRIPT_PATH" "$@"
+        elif command -v python &> /dev/null; then
+            python "$SCRIPT_PATH" "$@"
+        else
+            echo "Error: No Python interpreter found"
+            exit 1
+        fi
     fi
 fi
 '''
