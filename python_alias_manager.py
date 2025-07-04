@@ -760,6 +760,9 @@ fi
                 # Re-detect environment after creation
                 venv_info = self.detect_venv(script_path)
                 print("✅ Virtual environment created and ready!")
+                
+                # Update the alias to use the new virtual environment
+                self.update_alias_after_venv_creation(alias_name, script_path)
             elif required_packages:
                 print("📦 Dependencies found but no virtual environment detected")
                 print("💡 To auto-create virtual environment and install dependencies:")
@@ -991,6 +994,7 @@ fi
         
         # Check if virtual environment exists
         has_venv = venv_info and venv_info.get('type') == 'venv'
+        venv_created = False
         
         if not has_venv:
             print("❌ No virtual environment found")
@@ -1005,12 +1009,38 @@ fi
             if not venv_path_str:
                 return False
             
+            venv_created = True
             # Re-detect environment after creation
             venv_info = self.detect_venv(script_path)
+        else:
+            print(f"✅ Virtual environment already exists: {venv_info['path']}")
         
         # Now proceed with dependency checking and installation
-        return self.check_dependencies(alias_name, install_missing)
+        result = self.check_dependencies(alias_name, install_missing)
+        
+        # Update the alias to use the new virtual environment if one was created
+        if result and venv_created:
+            self.update_alias_after_venv_creation(alias_name, script_path)
+        
+        return result
     
+    def update_alias_after_venv_creation(self, alias_name: str, script_path: str) -> bool:
+        """Update alias files after virtual environment creation to use the new venv Python."""
+        if alias_name not in self.aliases:
+            return False
+        
+        print(f"🔄 Updating alias '{alias_name}' to use new virtual environment...")
+        
+        # Create new batch and shell files with updated venv info
+        try:
+            batch_file = self.create_batch_file(alias_name, script_path)
+            shell_file = self.create_shell_script(alias_name, script_path)
+            print(f"✅ Updated alias files to use virtual environment")
+            return True
+        except Exception as e:
+            print(f"⚠️  Warning: Could not update alias files: {e}")
+            return False
+
 def main():
     parser = argparse.ArgumentParser(
         description="Python Script Alias Manager",
