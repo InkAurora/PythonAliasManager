@@ -36,8 +36,9 @@ class ScriptGenerator:
             conda_env_name = venv_info.get('conda_env_name')
             if conda_env_name and self.venv_detector.check_conda_available():
                 # Create batch file content with conda run (no initialization required)
+                # Use --no-capture-output to ensure stdin/stdout/stderr are properly forwarded
                 batch_content = f'''@echo off
-conda run -n {conda_env_name} python "{script_path}" %*
+conda run --no-capture-output -n {conda_env_name} python "{script_path}" %*
 '''
                 with open(batch_file, 'w') as f:
                     f.write(batch_content)
@@ -169,7 +170,8 @@ fi
 # Check if conda is available
 if command -v conda &> /dev/null; then
     # Use conda to run the script in the specified environment
-    conda run -n {conda_env_name} python "$SCRIPT_PATH" "$@"
+    # Use --no-capture-output to ensure stdin/stdout/stderr are properly forwarded
+    conda run --no-capture-output -n {conda_env_name} python "$SCRIPT_PATH" "$@"
 else
     echo "Error: Conda is not available in PATH"
     echo "Please install Anaconda/Miniconda or ensure conda is in your PATH"
