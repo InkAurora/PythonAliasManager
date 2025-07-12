@@ -3,11 +3,10 @@ Dependency management for Python Alias Manager.
 Handles parsing requirements files, checking installed packages, and installing dependencies.
 """
 
-import os
 import re
 import subprocess
 from pathlib import Path
-from typing import List, Set, Optional, Union
+from typing import List, Set, Optional
 
 
 class DependencyManager:

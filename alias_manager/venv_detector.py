@@ -111,20 +111,7 @@ class VenvDetector:
             return None
         
         venv_path = Path(venv_info['path'])
-        
-        # Check common Python executable locations in venv
-        python_executables = [
-            venv_path / 'Scripts' / 'python.exe',    # Windows
-            venv_path / 'Scripts' / 'python',        # Windows
-            venv_path / 'bin' / 'python',            # Linux/macOS
-            venv_path / 'bin' / 'python3',           # Linux/macOS
-        ]
-        
-        for python_exe in python_executables:
-            if python_exe.exists():
-                return str(python_exe)
-        
-        return None
+        return self.get_venv_python_from_path(venv_path)
     
     def get_venv_python_from_path(self, venv_path: Path) -> Optional[str]:
         """Get Python executable from a virtual environment path."""
