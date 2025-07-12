@@ -1,7 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "pythonaliasmanager"
 version = "1.0.0"
-description = "A Python package for managing aliases in Python scripts."
+description = "A Python package for managing aliases for Python scripts that can be run from anywhere in PATH."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
+authors = [
+    {name = "InkAurora", email = "your.email@example.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+keywords = ["alias", "python", "script", "manager", "cli"]
+
+[project.urls]
+Homepage = "https://github.com/InkAurora/PythonAliasManager"
+Repository = "https://github.com/InkAurora/PythonAliasManager"
+Issues = "https://github.com/InkAurora/PythonAliasManager/issues"
+
+[project.scripts]
+pam = "alias_manager.cli:main"
+python-alias-manager = "alias_manager.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["alias_manager*"]
+
+[tool.setuptools.package-data]
+alias_manager = ["*.py"]

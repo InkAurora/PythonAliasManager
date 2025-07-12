@@ -37,20 +37,28 @@ echo "✓ Python available"
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check for required Python scripts in the same directory as this installer
+# Check for required Python scripts and packages in the same directory as this installer
 ALIAS_MANAGER="$SCRIPT_DIR/python_alias_manager.py"
+ALIAS_PACKAGE="$SCRIPT_DIR/alias_manager"
+
 if [[ ! -f "$ALIAS_MANAGER" ]]; then
     echo "Error: python_alias_manager.py not found at $ALIAS_MANAGER"
     echo ""
     echo "Make sure python_alias_manager.py is in the same directory as this installer."
     echo "Current script directory: $SCRIPT_DIR"
+    exit 1
+fi
+
+if [[ ! -d "$ALIAS_PACKAGE" ]]; then
+    echo "Error: alias_manager package not found at $ALIAS_PACKAGE"
     echo ""
-    echo "Available files in current directory:"
-    ls -la "$SCRIPT_DIR"/*.py 2>/dev/null || echo "  No Python files found"
+    echo "Make sure the alias_manager package directory is in the same directory as this installer."
+    echo "Current script directory: $SCRIPT_DIR"
     exit 1
 fi
 
 echo "Found alias manager script: $ALIAS_MANAGER"
+echo "Found alias manager package: $ALIAS_PACKAGE"
 
 # Create WSL-specific installation directory
 WSL_INSTALL_DIR="$HOME/.python_aliases/manager"
@@ -58,7 +66,14 @@ mkdir -p "$WSL_INSTALL_DIR"
 
 # Copy the alias manager script to WSL filesystem for better performance
 cp "$ALIAS_MANAGER" "$WSL_INSTALL_DIR/"
-echo "✓ Copied alias manager to WSL filesystem: $WSL_INSTALL_DIR/python_alias_manager.py"
+echo "✓ Copied main script to WSL filesystem: $WSL_INSTALL_DIR/python_alias_manager.py"
+
+# Copy the entire alias_manager package
+if [[ -d "$WSL_INSTALL_DIR/alias_manager" ]]; then
+    rm -rf "$WSL_INSTALL_DIR/alias_manager"
+fi
+cp -r "$ALIAS_PACKAGE" "$WSL_INSTALL_DIR/"
+echo "✓ Copied alias_manager package to WSL filesystem: $WSL_INSTALL_DIR/alias_manager"
 
 # Create WSL-optimized shell script for pam
 cat > "$WSL_INSTALL_DIR/pam" << 'EOF'

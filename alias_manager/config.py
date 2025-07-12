@@ -9,6 +9,20 @@ from pathlib import Path
 from typing import Dict
 
 
+def safe_print(*args, **kwargs):
+    """Print with safe Unicode handling for Windows."""
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        # Replace Unicode characters with ASCII equivalents on Windows
+        safe_args = []
+        for arg in args:
+            if isinstance(arg, str):
+                arg = arg.replace('✓', '*').replace('⚠', '!').replace('❌', 'X').replace('🎉', '!')
+            safe_args.append(arg)
+        print(*safe_args, **kwargs)
+
+
 class ConfigManager:
     """Manages configuration and alias storage for the Python Alias Manager."""
     
@@ -45,33 +59,33 @@ class ConfigManager:
         batch_dir_str = str(self.batch_dir)
         
         if batch_dir_str not in path_env:
-            print(f"⚠️  Setup Required:")
-            print(f"The alias directory is not in your PATH.")
-            print(f"To use aliases from anywhere, add this directory to your PATH:")
-            print(f"  {batch_dir_str}")
-            print()
-            print("Windows Setup Instructions:")
-            print("1. Open System Properties (Win + Pause)")
-            print("2. Click 'Advanced system settings'")
-            print("3. Click 'Environment Variables'")
-            print("4. Under 'User variables', find and select 'Path', then click 'Edit'")
-            print("5. Click 'New' and add the path above")
-            print("6. Click 'OK' to save")
-            print("7. Restart your command prompt/PowerShell")
-            print()
-            print("PowerShell Command (as Administrator):")
-            print(f'[Environment]::SetEnvironmentVariable("Path", $env:Path + ";{batch_dir_str}", [EnvironmentVariableTarget]::User)')
-            print()
-            print("Bash/Linux/macOS Setup Instructions:")
-            print("Add this line to your ~/.bashrc, ~/.zshrc, or ~/.profile:")
-            print(f'export PATH="$PATH:{batch_dir_str}"')
-            print("Then run: source ~/.bashrc (or restart your terminal)")
-            print()
-            print("Git Bash on Windows:")
-            print("Add this line to ~/.bashrc:")
-            print(f'export PATH="$PATH:{batch_dir_str.replace(os.sep, "/")}"')
+            safe_print(f"⚠️  Setup Required:")
+            safe_print(f"The alias directory is not in your PATH.")
+            safe_print(f"To use aliases from anywhere, add this directory to your PATH:")
+            safe_print(f"  {batch_dir_str}")
+            safe_print()
+            safe_print("Windows Setup Instructions:")
+            safe_print("1. Open System Properties (Win + Pause)")
+            safe_print("2. Click 'Advanced system settings'")
+            safe_print("3. Click 'Environment Variables'")
+            safe_print("4. Under 'User variables', find and select 'Path', then click 'Edit'")
+            safe_print("5. Click 'New' and add the path above")
+            safe_print("6. Click 'OK' to save")
+            safe_print("7. Restart your command prompt/PowerShell")
+            safe_print()
+            safe_print("PowerShell Command (as Administrator):")
+            safe_print(f'[Environment]::SetEnvironmentVariable("Path", $env:Path + ";{batch_dir_str}", [EnvironmentVariableTarget]::User)')
+            safe_print()
+            safe_print("Bash/Linux/macOS Setup Instructions:")
+            safe_print("Add this line to your ~/.bashrc, ~/.zshrc, or ~/.profile:")
+            safe_print(f'export PATH="$PATH:{batch_dir_str}"')
+            safe_print("Then run: source ~/.bashrc (or restart your terminal)")
+            safe_print()
+            safe_print("Git Bash on Windows:")
+            safe_print("Add this line to ~/.bashrc:")
+            safe_print(f'export PATH="$PATH:{batch_dir_str.replace(os.sep, "/")}"')
             return False
         else:
-            print(f"✓ Alias directory is in PATH: {batch_dir_str}")
-            print("Aliases will work in both Windows Command Prompt/PowerShell and Bash!")
+            safe_print(f"✓ Alias directory is in PATH: {batch_dir_str}")
+            safe_print("Aliases will work in both Windows Command Prompt/PowerShell and Bash!")
             return True

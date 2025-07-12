@@ -17,19 +17,31 @@ def main():
     # Get the directory where this installer is located
     installer_dir = Path(__file__).parent.absolute()
     alias_manager_script = installer_dir / "python_alias_manager.py"
+    alias_manager_package = installer_dir / "alias_manager"
     
     if not alias_manager_script.exists():
         print(f"Error: python_alias_manager.py not found in {installer_dir}")
+        return
+    
+    if not alias_manager_package.exists():
+        print(f"Error: alias_manager package not found in {installer_dir}")
         return
     
     # Create installation directory
     install_dir = Path.home() / ".python_aliases" / "manager"
     install_dir.mkdir(parents=True, exist_ok=True)
     
-    # Copy the alias manager script
+    # Copy the main entry point script
     dest_script = install_dir / "python_alias_manager.py"
     shutil.copy2(alias_manager_script, dest_script)
-    print(f"✓ Installed alias manager to: {dest_script}")
+    print(f"✓ Installed main script to: {dest_script}")
+    
+    # Copy the entire alias_manager package
+    dest_package = install_dir / "alias_manager"
+    if dest_package.exists():
+        shutil.rmtree(dest_package)
+    shutil.copytree(alias_manager_package, dest_package, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    print(f"✓ Installed alias_manager package to: {dest_package}")
     
     # Create a convenient batch file for the manager itself (Windows)
     manager_batch = install_dir / "pam.bat"

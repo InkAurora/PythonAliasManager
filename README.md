@@ -17,21 +17,68 @@ A comprehensive tool for creating and managing aliases for Python scripts on Win
 
 ## Installation
 
-1. **Quick Install** (Windows):
+### Option 1: Simple Installation (Recommended)
 
-   ```powershell
-   python install_alias_manager.py
-   ```
+The easiest way to install is using the simple installer:
 
-2. **WSL Installation** (Windows Subsystem for Linux):
+```bash
+python install_simple.py
+```
 
-   ```bash
-   bash install_wsl.sh
-   ```
+This will:
+- Install the package using pip with proper entry points
+- Create the `pam` command available system-wide
+- Test the installation automatically
 
-3. **Manual Install**:
-   - Copy `python_alias_manager.py` to a directory in your PATH
-   - Or follow the PATH setup instructions below
+### Option 2: Package Installation
+
+For a more robust installation with package management:
+
+```bash
+python install_package.py
+```
+
+This creates a proper Python package installation and sets up command-line scripts.
+
+### Option 3: Manual Installation
+
+For backwards compatibility, you can still use the original installer:
+
+```bash
+python install_alias_manager.py
+```
+
+This copies files to `~/.python_aliases/manager/` and creates wrapper scripts.
+
+### Option 4: Direct pip Installation
+
+If you want to install it as a development package:
+
+```bash
+pip install -e .
+```
+
+### WSL Installation
+
+For Windows Subsystem for Linux:
+
+```bash
+bash install_wsl.sh
+```
+
+### Verification
+
+After installation, verify it works:
+
+```bash
+pam --help
+```
+
+Or alternatively:
+
+```bash
+python -m alias_manager --help
+```
 
 ## Usage
 

@@ -16,6 +16,20 @@ from .dependency_manager import DependencyManager
 from .environment_setup import EnvironmentSetup
 
 
+def safe_print(*args, **kwargs):
+    """Print with safe Unicode handling for Windows."""
+    try:
+        print(*args, **kwargs)
+    except UnicodeEncodeError:
+        # Replace Unicode characters with ASCII equivalents on Windows
+        safe_args = []
+        for arg in args:
+            if isinstance(arg, str):
+                arg = arg.replace('✓', '*').replace('⚠', '!').replace('❌', 'X').replace('🎉', '!')
+            safe_args.append(arg)
+        print(*safe_args, **kwargs)
+
+
 class PythonAliasManager:
     """Main class for managing Python script aliases."""
     
@@ -60,7 +74,7 @@ class PythonAliasManager:
                 # Use the override for display purposes
                 venv_info = venv_info_override
             else:
-                print(f"⚠️  Conda not available, ignoring --conda-env option")
+                safe_print(f"! Conda not available, ignoring --conda-env option")
         
         # Create both batch file (Windows) and shell script (Bash)
         try:
@@ -138,7 +152,7 @@ class PythonAliasManager:
         print("Current aliases:")
         print("-" * 80)
         for alias, script in self.aliases.items():
-            status = "✓" if os.path.exists(script) else "✗"
+            status = "*" if os.path.exists(script) else "X"
             
             # Get virtual environment info
             venv_info = self.venv_detector.detect_venv(script) if os.path.exists(script) else None
