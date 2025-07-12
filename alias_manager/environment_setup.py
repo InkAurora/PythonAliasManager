@@ -117,7 +117,7 @@ class EnvironmentSetup:
             print(f"❌ Error creating conda environment: {e}")
             return False
 
-    def auto_setup_dependencies(self, script_path: str, aliases: dict, install_missing: bool = True) -> bool:
+    def auto_setup_dependencies(self, script_path: str, aliases: dict, install_missing: bool = True, force_recreate: bool = False) -> bool:
         """Automatically set up virtual environment and install dependencies for a script."""
         if not os.path.exists(script_path):
             print(f"Script '{script_path}' no longer exists.")
@@ -125,6 +125,8 @@ class EnvironmentSetup:
         
         print(f"🚀 Auto-setup for script:")
         print(f"Script: {script_path}")
+        if force_recreate:
+            print("🔄 Force recreate mode: Will remove existing environment and recreate from scratch")
         print("-" * 60)
         
         # Detect current environment and requirements
@@ -166,6 +168,22 @@ class EnvironmentSetup:
         
         print(f"📦 Found {len(required_packages)} required packages: {', '.join(required_packages)}")
         
+        # Handle force recreate - remove existing environment first
+        if force_recreate:
+            print("\n🗑️  Force recreate requested - removing existing environment...")
+            if venv_info and venv_info.get('type') == 'venv':
+                venv_path = venv_info.get('path')
+                if venv_path and Path(venv_path).exists():
+                    print(f"   Removing virtual environment: {venv_path}")
+                    self.remove_virtual_environment(venv_path)
+                    venv_info = None  # Reset so it will be recreated
+            elif venv_info and venv_info.get('type') == 'conda':
+                conda_env_name = venv_info.get('conda_env_name')
+                if conda_env_name:
+                    print(f"   Removing conda environment: {conda_env_name}")
+                    self.remove_conda_environment(conda_env_name)
+                    venv_info = None  # Reset so it will be recreated
+        
         # Check if virtual environment exists
         has_venv = self._check_environment_exists(venv_info, is_conda_file)
         
@@ -203,6 +221,32 @@ class EnvironmentSetup:
             elif venv_info and venv_info.get('type') == 'conda':
                 conda_env_name = venv_info.get('conda_env_name', 'unknown')
                 print(f"✅ Anaconda environment already exists: {conda_env_name}")
+        
+        # Install dependencies if environment was created or if it already exists
+        if venv_info and install_missing:
+            print(f"\n📦 Installing dependencies...")
+            
+            if venv_info.get('type') == 'conda':
+                # For conda environments, use conda installation method
+                conda_env_name = venv_info.get('conda_env_name')
+                if conda_env_name:
+                    success = self.dependency_manager.install_conda_dependencies(conda_env_name, required_packages)
+                    if not success:
+                        print("❌ Failed to install some dependencies")
+                        return False
+            else:
+                # For venv environments, use pip with the venv's Python
+                venv_python = self.venv_detector.get_venv_python_executable(venv_info)
+                if venv_python:
+                    success = self.dependency_manager.install_missing_dependencies(venv_python, required_packages)
+                    if not success:
+                        print("❌ Failed to install some dependencies")
+                        return False
+                else:
+                    print("❌ Could not find Python executable in virtual environment")
+                    return False
+            
+            print("✅ All dependencies installed successfully!")
         
         print(f"\n🎉 Setup complete! Environment is ready to use.")
         return True

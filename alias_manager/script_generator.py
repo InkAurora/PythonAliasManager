@@ -25,12 +25,25 @@ class ScriptGenerator:
         venv_info = venv_info_override or self.venv_detector.detect_venv(script_path)
         
         if venv_info and venv_info.get('type') == 'venv':
-            # Use virtual environment Python
-            venv_python = self.venv_detector.get_venv_python_executable(venv_info)
-            if venv_python:
-                python_exe = venv_python
+            # Use virtual environment with activation-based approach
+            venv_path = venv_info.get('path')
+            if venv_path:
+                # Create batch file that activates venv and uses the activated Python
+                batch_content = f'''@echo off
+if exist "{venv_path}\\Scripts\\activate.bat" (
+    call "{venv_path}\\Scripts\\activate.bat" >nul 2>&1
+    python "{script_path}" %*
+) else (
+    echo Error: Virtual environment activation script not found at {venv_path}\\Scripts\\activate.bat
+    echo Falling back to system Python...
+    python "{script_path}" %*
+)
+'''
             else:
-                python_exe = sys.executable
+                # Fallback to system Python
+                batch_content = f'''@echo off
+python "{script_path}" %*
+'''
         elif venv_info and venv_info.get('type') == 'conda':
             # Use conda environment
             conda_env_name = venv_info.get('conda_env_name')
@@ -40,19 +53,15 @@ class ScriptGenerator:
                 batch_content = f'''@echo off
 conda run --no-capture-output -n {conda_env_name} python "{script_path}" %*
 '''
-                with open(batch_file, 'w') as f:
-                    f.write(batch_content)
-                return batch_file
             else:
                 # Fallback to system Python if conda not available or no env name
-                python_exe = sys.executable
+                batch_content = f'''@echo off
+python "{script_path}" %*
+'''
         else:
-            # Use system Python
-            python_exe = sys.executable
-        
-        # Create batch file content
-        batch_content = f'''@echo off
-"{python_exe}" "{script_path}" %*
+            # Use system Python with dynamic detection
+            batch_content = f'''@echo off
+python "{script_path}" %*
 '''
         
         with open(batch_file, 'w') as f:

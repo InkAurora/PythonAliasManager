@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.3] - 2025-07-12
+
+### Added
+
+- **Force Recreate Virtual Environments**: New `--force` flag for `setup-deps` command
+  - `pam setup-deps alias_name --force` removes existing virtual environment and recreates from scratch
+  - Fixes broken virtual environments that reference non-existent Python installations
+  - Automatically installs all dependencies from requirements files after recreation
+  - Works with both conda environments and Python virtual environments
+
+### Fixed
+
+- **Dynamic Python Executable Resolution**: Fixed hardcoded Python paths in generated batch files
+  - Batch files now use activation-based approach instead of hardcoded Python executable paths
+  - Prevents "did not find executable at 'C:\Python313\python.exe'" errors when Python installations move
+  - Improved robustness when virtual environments are created with different Python versions
+  - Enhanced fallback mechanisms for broken virtual environment detection
+
+### Changed
+
+- Updated dependency installation to use `--no-cache-dir` flag to avoid permission issues
+- Improved error handling and user feedback during environment recreation
+
 ## [1.0.2] - 2025-07-12
 
 ### Added

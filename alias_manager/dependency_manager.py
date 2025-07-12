@@ -160,7 +160,7 @@ class DependencyManager:
             return True
         
         try:
-            cmd = [python_exe, "-m", "pip", "install"] + missing_packages
+            cmd = [python_exe, "-m", "pip", "install", "--no-cache-dir"] + missing_packages
             print(f"Running: {' '.join(cmd)}")
             
             result = subprocess.run(cmd, capture_output=False, text=True)

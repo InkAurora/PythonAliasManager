@@ -15,6 +15,10 @@ A comprehensive tool for creating and managing aliases for Python scripts on Win
 - **Environment Analysis**: Detailed virtual environment information and package listing
 - **WSL Path Conversion**: Automatic Windows-to-WSL path conversion for seamless cross-platform operation
 - **Environment Cleanup**: Intelligently remove associated virtual environments when removing aliases
+- **Dependency Management**: Check, install, and manage dependencies for aliased scripts
+- **Auto-Setup Environments**: Automatically create virtual environments and install dependencies from requirements files
+- **Force Recreate**: Fix broken virtual environments with `--force` flag that recreates environments from scratch
+- **Dynamic Python Resolution**: Generated scripts use activation-based approach instead of hardcoded Python paths
 
 ## Installation
 
@@ -111,6 +115,26 @@ pam venv myapp
 pam setup
 ```
 
+### Dependency Management
+
+```powershell
+# Check dependencies for an alias
+pam deps myapp                      # Check what dependencies are required/installed
+pam deps myapp --install            # Install missing dependencies
+pam deps myapp --setup              # Create virtual environment and install dependencies
+
+# Auto-setup virtual environment and dependencies
+pam setup-deps myapp                # Create venv/conda environment and install all dependencies
+pam setup-deps myapp --force        # Force recreate environment from scratch (fixes broken venvs)
+```
+
+**The `--force` flag is particularly useful when:**
+
+- Virtual environment references a Python installation that no longer exists
+- Getting "did not find executable" errors
+- Want to start fresh with current Python version
+- Virtual environment is corrupted or misconfigured
+
 ### PATH Setup
 
 For aliases to work from anywhere, the alias directory must be in your PATH:
@@ -179,7 +203,15 @@ For aliases to work from anywhere, the alias directory must be in your PATH:
    - The appropriate file executes Python with your script
    - All arguments are passed through to your script
 
-3. **Cross-Platform Compatibility**:
+3. **Smart Python Resolution**: Generated scripts use dynamic Python detection:
+
+   - **Virtual Environments**: Activates the environment first, then uses the activated Python
+   - **Conda Environments**: Uses `conda run` to execute in the correct environment
+   - **System Python**: Falls back to system Python if no environment is detected
+   - **No Hardcoded Paths**: Scripts don't rely on fixed Python installation paths
+   - **Robust Fallbacks**: Multiple fallback mechanisms ensure scripts work even if environments change
+
+4. **Cross-Platform Compatibility**:
    - Works seamlessly in Windows Command Prompt
    - Works in PowerShell
    - Works in Git Bash on Windows
@@ -220,6 +252,19 @@ For aliases to work from anywhere, the alias directory must be in your PATH:
    hello --name "Alice"
 
    # Output: Hello, Alice!
+   ```
+
+4. **Fixing Broken Virtual Environments** (if needed):
+
+   ```powershell
+   # If you get "did not find executable" errors:
+   pam setup-deps hello --force
+
+   # This will:
+   # - Remove the broken virtual environment
+   # - Create a fresh environment with current Python
+   # - Install all dependencies from requirements.txt
+   # - Update the alias to use the new environment
    ```
 
 ## Directory Structure
@@ -336,7 +381,17 @@ pam venv webproject
    - Verify packages are installed in the virtual environment
    - Check that the correct Python executable is being used
    - Try recreating the alias: `pam update alias_name script_path`
-3. **WSL virtual environment issues**:
+3. **"did not find executable at 'C:\PythonXXX\python.exe'" errors**:
+   - This happens when virtual environment references a Python installation that no longer exists
+   - **Solution**: Use `pam setup-deps alias_name --force` to recreate the environment
+   - The `--force` flag removes the broken environment and creates a fresh one with current Python
+   - All dependencies will be automatically reinstalled from requirements files
+4. **Broken or corrupted virtual environments**:
+   - **Quick fix**: `pam setup-deps alias_name --force`
+   - This completely recreates the environment from scratch
+   - Works for both conda environments and Python virtual environments
+   - Automatically detects and installs dependencies from requirements files
+5. **WSL virtual environment issues**:
    - Ensure Python 3 is installed in WSL: `sudo apt install python3`
    - Check that Windows venv paths are being converted correctly
    - Virtual environments work best when created within WSL filesystem

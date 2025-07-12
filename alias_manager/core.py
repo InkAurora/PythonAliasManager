@@ -550,14 +550,14 @@ class PythonAliasManager:
             print(f"\n🎉 All dependencies are installed!")
             return True
 
-    def auto_setup_dependencies(self, alias_name: str, install_missing: bool = True) -> bool:
+    def auto_setup_dependencies(self, alias_name: str, install_missing: bool = True, force_recreate: bool = False) -> bool:
         """Automatically set up virtual environment and install dependencies for an alias."""
         if alias_name not in self.aliases:
             print(f"Alias '{alias_name}' not found.")
             return False
         
         script_path = self.aliases[alias_name]
-        result = self.environment_setup.auto_setup_dependencies(script_path, self.aliases, install_missing)
+        result = self.environment_setup.auto_setup_dependencies(script_path, self.aliases, install_missing, force_recreate=force_recreate)
         
         # Update the alias to use the new virtual environment if one was created
         if result:

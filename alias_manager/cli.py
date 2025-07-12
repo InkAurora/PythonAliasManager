@@ -26,6 +26,7 @@ Examples:
   python_alias_manager.py deps myapp --install
   python_alias_manager.py deps myapp --setup
   python_alias_manager.py setup-deps myapp    # Auto-setup venv/conda + deps
+  python_alias_manager.py setup-deps myapp --force  # Force recreate environment
   python_alias_manager.py setup
         """
     )
@@ -74,6 +75,7 @@ Examples:
     # Auto-setup command
     setup_deps_parser = subparsers.add_parser('setup-deps', help='Auto-create virtual environment or Anaconda environment and install dependencies for an alias')
     setup_deps_parser.add_argument('alias_name', help='Name of the alias to setup dependencies for')
+    setup_deps_parser.add_argument('--force', action='store_true', help='Remove existing virtual environment and recreate it from scratch')
     
     args = parser.parse_args()
     
@@ -105,7 +107,8 @@ Examples:
         install_flag = args.install or args.setup
         manager.check_dependencies(args.alias_name, install_flag)
     elif args.command == 'setup-deps':
-        manager.auto_setup_dependencies(args.alias_name, True)
+        force_recreate = getattr(args, 'force', False)
+        manager.auto_setup_dependencies(args.alias_name, True, force_recreate=force_recreate)
 
 
 if __name__ == "__main__":
