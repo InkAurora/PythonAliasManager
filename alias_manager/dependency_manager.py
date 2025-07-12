@@ -7,7 +7,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import List, Set
+from typing import List, Set, Optional, Union
 
 
 class DependencyManager:
@@ -225,7 +225,7 @@ class DependencyManager:
             script_dir / 'poetry.lock'
         ]
 
-    def find_requirements_file(self, script_dir: Path) -> str | None:
+    def find_requirements_file(self, script_dir: Path) -> Optional[str]:
         """Find the first existing requirements file in the script directory."""
         for req_file in self.get_requirements_files(script_dir):
             if req_file.exists():
