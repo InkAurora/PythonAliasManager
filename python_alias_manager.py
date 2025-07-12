@@ -889,9 +889,9 @@ fi
         print(f"🔧 Creating virtual environment at: {venv_path}")
         
         try:
-            # Create virtual environment
+            # Create virtual environment in the script's directory
             result = subprocess.run([sys.executable, "-m", "venv", str(venv_path)], 
-                                  capture_output=True, text=True, timeout=60)
+                                  capture_output=True, text=True, timeout=60, cwd=str(script_dir))
             
             if result.returncode != 0:
                 print(f"❌ Failed to create virtual environment:")
@@ -905,7 +905,7 @@ fi
             if venv_python:
                 print("🔧 Upgrading pip in virtual environment...")
                 pip_result = subprocess.run([venv_python, "-m", "pip", "install", "--upgrade", "pip"], 
-                                          capture_output=True, text=True, timeout=60)
+                                          capture_output=True, text=True, timeout=60, cwd=str(script_dir))
                 if pip_result.returncode == 0:
                     print("✅ Pip upgraded successfully!")
                 else:
