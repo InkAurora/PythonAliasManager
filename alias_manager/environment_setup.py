@@ -234,3 +234,75 @@ class EnvironmentSetup:
                     has_venv = False
         
         return has_venv
+
+    def remove_conda_environment(self, conda_env_name: str) -> bool:
+        """Remove a conda environment."""
+        if not self.venv_detector.check_conda_available():
+            print("❌ Conda is not available in PATH")
+            return False
+        
+        if not conda_env_name:
+            print("❌ No conda environment name provided")
+            return False
+        
+        try:
+            # Check if environment exists
+            result = subprocess.run(['conda', 'env', 'list'], 
+                                  capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                print("❌ Failed to list conda environments")
+                return False
+            
+            env_exists = False
+            for line in result.stdout.split('\n'):
+                if line.strip().startswith(conda_env_name):
+                    env_exists = True
+                    break
+            
+            if not env_exists:
+                print(f"ℹ️  Conda environment '{conda_env_name}' does not exist or was already removed")
+                return True
+            
+            print(f"🗑️  Removing conda environment '{conda_env_name}'...")
+            
+            # Remove conda environment
+            result = subprocess.run(['conda', 'env', 'remove', '-n', conda_env_name, '-y'], 
+                                  capture_output=False, text=True, timeout=120)
+            
+            if result.returncode == 0:
+                print(f"✅ Conda environment '{conda_env_name}' removed successfully!")
+                return True
+            else:
+                print(f"❌ Failed to remove conda environment '{conda_env_name}'")
+                print("   You may need to remove it manually with: conda env remove -n " + conda_env_name)
+                return False
+                
+        except subprocess.TimeoutExpired:
+            print("❌ Conda environment removal timed out")
+            print(f"   Try removing the environment manually with: conda env remove -n {conda_env_name}")
+            return False
+        except Exception as e:
+            print(f"❌ Error removing conda environment: {e}")
+            return False
+
+    def remove_virtual_environment(self, venv_path: str) -> bool:
+        """Remove a virtual environment directory."""
+        if not venv_path:
+            print("❌ No virtual environment path provided")
+            return False
+        
+        venv_path_obj = Path(venv_path)
+        if not venv_path_obj.exists():
+            print(f"ℹ️  Virtual environment at '{venv_path}' does not exist or was already removed")
+            return True
+        
+        try:
+            print(f"🗑️  Removing virtual environment at '{venv_path}'...")
+            import shutil
+            shutil.rmtree(venv_path_obj)
+            print(f"✅ Virtual environment removed successfully!")
+            return True
+        except Exception as e:
+            print(f"❌ Error removing virtual environment: {e}")
+            print(f"   You may need to remove it manually: rmdir /s \"{venv_path}\" (Windows) or rm -rf \"{venv_path}\" (Linux/macOS)")
+            return False

@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.2] - 2025-07-12
+
+### Added
+
+- **Environment Cleanup**: Enhanced `remove` command to also remove associated virtual environments
+  - Interactive prompt to remove conda environments when removing an alias
+  - Interactive prompt to remove venv directories when removing an alias
+  - `--keep-env` flag to preserve virtual environments when removing aliases
+  - `--remove-env` flag to automatically remove virtual environments without prompting
+  - Supports both conda environments and Python virtual environments
+  - Provides manual cleanup instructions when automated removal fails
+
+### Changed
+
+- Updated `remove` command behavior to detect and optionally clean up virtual environments
+- Enhanced CLI help text with new virtual environment removal examples
+
 ## [1.0.1] - 2025-07-12
 
 ### Fixed

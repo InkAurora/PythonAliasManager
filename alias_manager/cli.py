@@ -18,6 +18,8 @@ Examples:
   python_alias_manager.py add myapp ~/scripts/my_application.py --conda-env myenv
   python_alias_manager.py list
   python_alias_manager.py remove myapp
+  python_alias_manager.py remove myapp --keep-env
+  python_alias_manager.py remove myapp --remove-env
   python_alias_manager.py run myapp --help
   python_alias_manager.py venv myapp
   python_alias_manager.py deps myapp
@@ -39,6 +41,8 @@ Examples:
     # Remove alias command
     remove_parser = subparsers.add_parser('remove', help='Remove an alias')
     remove_parser.add_argument('alias_name', help='Name of the alias to remove')
+    remove_parser.add_argument('--keep-env', action='store_true', help='Keep the virtual environment when removing the alias')
+    remove_parser.add_argument('--remove-env', action='store_true', help='Automatically remove the virtual environment without prompting')
     
     # List aliases command
     subparsers.add_parser('list', help='List all aliases')
@@ -83,7 +87,9 @@ Examples:
         manager.add_alias(args.alias_name, args.script_path, args.conda_env)
         manager.check_path_setup()
     elif args.command == 'remove':
-        manager.remove_alias(args.alias_name)
+        keep_env = getattr(args, 'keep_env', False)
+        remove_env = getattr(args, 'remove_env', False)
+        manager.remove_alias(args.alias_name, keep_env=keep_env, remove_env=remove_env)
     elif args.command == 'list':
         manager.list_aliases()
     elif args.command == 'update':

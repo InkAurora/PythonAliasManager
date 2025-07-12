@@ -8,12 +8,13 @@ A comprehensive tool for creating and managing aliases for Python scripts on Win
 - **Smart Virtual Environment Detection**: Automatically detects and uses virtual environments (venv, conda, project dependencies)
 - **Create Aliases**: Create short, memorable aliases for your Python scripts
 - **Path Integration**: Run aliased scripts from anywhere in your system
-- **Alias Management**: List, update, and remove aliases easily
+- **Alias Management**: List, update, and remove aliases easily with optional virtual environment cleanup
 - **Dual File Generation**: Creates both Windows batch files (.bat) and shell scripts for maximum compatibility
 - **Path Validation**: Checks if scripts exist and validates PATH configuration
 - **Cross-argument Support**: Pass arguments to your aliased scripts
 - **Environment Analysis**: Detailed virtual environment information and package listing
 - **WSL Path Conversion**: Automatic Windows-to-WSL path conversion for seamless cross-platform operation
+- **Environment Cleanup**: Intelligently remove associated virtual environments when removing aliases
 
 ## Installation
 
@@ -26,6 +27,7 @@ python install_simple.py
 ```
 
 This will:
+
 - Install the package using pip with proper entry points
 - Create the `pam` command available system-wide
 - Test the installation automatically
@@ -91,8 +93,10 @@ pam add myapp C:\path\to\my_script.py
 # List all aliases (shows virtual environment status)
 pam list
 
-# Remove an alias
-pam remove myapp
+# Remove an alias (with optional environment cleanup)
+pam remove myapp                    # Interactive prompt for environment removal
+pam remove myapp --keep-env         # Keep virtual environment
+pam remove myapp --remove-env       # Automatically remove environment
 
 # Update an alias
 pam update myapp C:\new\path\to\script.py
@@ -488,3 +492,33 @@ pam list
    # Works in Git Bash/WSL with venv activation
    webtools
    ```
+
+## Virtual Environment Cleanup
+
+When removing aliases, the system can also clean up associated virtual environments:
+
+```powershell
+# Interactive removal - prompts for environment cleanup
+pam remove myproject
+# Output:
+# Removed Windows batch file: C:\Users\User\.python_aliases\bin\myproject.bat
+# Removed bash shell script: C:\Users\User\.python_aliases\bin\myproject
+# Alias 'myproject' removed.
+#
+# 🐍 Detected conda environment: 'my-data-project'
+# Do you want to remove the conda environment 'my-data-project'? (y/N): y
+# 🗑️  Removing conda environment 'my-data-project'...
+# ✅ Conda environment 'my-data-project' removed successfully!
+
+# Keep environment when removing alias
+pam remove myproject --keep-env
+# Output: Environment is preserved
+
+# Automatically remove environment without prompting
+pam remove myproject --remove-env
+# Output: Environment is removed automatically
+
+# Supports both conda environments and Python virtual environments
+pam remove webproject --remove-env  # Removes venv directory
+pam remove dataproject --remove-env # Removes conda environment
+```

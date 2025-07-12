@@ -118,11 +118,18 @@ class PythonAliasManager:
         print("Works in both Windows Command Prompt/PowerShell and Bash!")
         return True
     
-    def remove_alias(self, alias_name: str) -> bool:
-        """Remove an alias."""
+    def remove_alias(self, alias_name: str, keep_env: bool = False, remove_env: bool = False) -> bool:
+        """Remove an alias and optionally its associated virtual environment."""
         if alias_name not in self.aliases:
             print(f"Alias '{alias_name}' does not exist.")
             return False
+        
+        script_path = self.aliases[alias_name]
+        
+        # Check for virtual environment before removing alias
+        venv_info = None
+        if os.path.exists(script_path):
+            venv_info = self.venv_detector.detect_venv(script_path)
         
         # Remove both batch file and shell script
         batch_file = self.config_manager.batch_dir / f"{alias_name}.bat"
@@ -141,6 +148,43 @@ class PythonAliasManager:
         self.config_manager.save_aliases(self.aliases)
         
         print(f"Alias '{alias_name}' removed.")
+        
+        # Handle virtual environment removal
+        if venv_info and not keep_env:
+            if venv_info.get('type') == 'conda':
+                conda_env_name = venv_info.get('conda_env_name')
+                if conda_env_name:
+                    print(f"\n🐍 Detected conda environment: '{conda_env_name}'")
+                    if remove_env:
+                        self.environment_setup.remove_conda_environment(conda_env_name)
+                    else:
+                        response = input(f"Do you want to remove the conda environment '{conda_env_name}'? (y/N): ")
+                        if response.lower() in ['y', 'yes']:
+                            self.environment_setup.remove_conda_environment(conda_env_name)
+                        else:
+                            print(f"ℹ️  Conda environment '{conda_env_name}' was kept.")
+                            print(f"   To remove it later: conda env remove -n {conda_env_name}")
+            elif venv_info.get('type') == 'venv':
+                venv_path = venv_info.get('path')
+                if venv_path:
+                    print(f"\n🐍 Detected virtual environment: '{venv_path}'")
+                    if remove_env:
+                        self.environment_setup.remove_virtual_environment(venv_path)
+                    else:
+                        response = input(f"Do you want to remove the virtual environment? (y/N): ")
+                        if response.lower() in ['y', 'yes']:
+                            self.environment_setup.remove_virtual_environment(venv_path)
+                        else:
+                            print(f"ℹ️  Virtual environment at '{venv_path}' was kept.")
+                            print(f"   To remove it later manually: rmdir /s \"{venv_path}\" (Windows) or rm -rf \"{venv_path}\" (Linux/macOS)")
+        elif venv_info and keep_env:
+            if venv_info.get('type') == 'conda':
+                conda_env_name = venv_info.get('conda_env_name')
+                print(f"ℹ️  Conda environment '{conda_env_name}' was kept as requested.")
+            elif venv_info.get('type') == 'venv':
+                venv_path = venv_info.get('path')
+                print(f"ℹ️  Virtual environment at '{venv_path}' was kept as requested.")
+        
         return True
     
     def list_aliases(self):
